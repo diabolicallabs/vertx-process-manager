@@ -31,7 +31,7 @@
         <url>https://github.com/diabolicallabs/vertx-process-manager</url>
         <connection>scm:git:git@github.com:diabolicallabs/vertx-process-manager.git</connection>
         <developerConnection>scm:git:git@github.com:diabolicallabs/vertx-process-manager.git</developerConnection>
-        <tag>vertx-process-manager-1.0</tag>
+        <tag>vertx-process-manager-0.8</tag>
     </scm>
 
     <issueManagement>
