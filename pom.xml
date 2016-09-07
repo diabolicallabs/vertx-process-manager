@@ -4,7 +4,7 @@
 
     <groupId>com.diabolicallabs</groupId>
     <artifactId>vertx-process-manager</artifactId>
-    <version>0.8</version>
+    <version>0.9-SNAPSHOT</version>
 
     <parent>
         <groupId>org.sonatype.oss</groupId>
