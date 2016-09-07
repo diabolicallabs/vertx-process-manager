@@ -178,3 +178,4 @@ $RECYCLE.BIN/
 
 *.tlog
 /.idea/
+/maven-central-deploy.log

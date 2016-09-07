@@ -10,6 +10,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
 import io.vertx.rxjava.core.Vertx;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,14 +27,51 @@ public class RuleServiceTest {
 
   Logger logger = LoggerFactory.getLogger(RuleServiceTest.class);
 
+  AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
+  AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
+  AtomicReference<TaskService> taskServiceAtomicReference = new AtomicReference<>();
+  AtomicReference<RuleService> ruleServiceAtomicReference = new AtomicReference<>();
+
   @Rule
   public RunTestOnContext rule = new RunTestOnContext();
 
   @Before
   public void before(TestContext context) {
 
-    rule.vertx().deployVerticle(Verticle.class.getName(), context.asyncAssertSuccess());
+    Async async = context.async();
 
+    rule.vertx().deployVerticle(Verticle.class.getName(), handler -> {
+
+      Vertx rxVertx = new Vertx(rule.vertx());
+      KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
+
+      Observable.just(knowledgeServiceFactory)
+        .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
+        .doOnNext(knowledgeServiceAtomicReference::set)
+        .flatMap(service -> {
+          return service.addClassPathResourceObservable("VertxRule.drl").last()
+            .flatMap(nothing -> {
+              return service.getProcessServiceObservable().doOnNext(processServiceAtomicReference::set);
+            })
+            .flatMap(nothing -> {
+              return service.getTaskServiceObservable().doOnNext(taskServiceAtomicReference::set);
+            })
+            .flatMap(nothing -> {
+              return service.getRuleServiceObservable().doOnNext(ruleServiceAtomicReference::set);
+            });
+        })
+        .subscribe(
+          context::assertNotNull,
+          context::fail,
+          async::complete
+        );
+    });
+
+  }
+
+  @After
+  public void after(TestContext context) {
+    knowledgeServiceAtomicReference.get().close();
   }
 
   @Test
@@ -41,23 +79,7 @@ public class RuleServiceTest {
 
     Async async = context.async();
 
-    AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
-    AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
-    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
-    AtomicReference<TaskService> taskServiceAtomicReference = new AtomicReference<>();
-    AtomicReference<RuleService> ruleServiceAtomicReference = new AtomicReference<>();
-
-    Vertx rxVertx = new Vertx(rule.vertx());
-
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .doOnNext(knowledgeServiceAtomicReference::set)
-      .flatMap(knowledgeService -> {
-        return knowledgeService.addClassPathResourceObservable("VertxRule.drl")
-          .flatMap(nothing -> knowledgeService.getRuleServiceObservable())
-          .doOnNext(ruleServiceAtomicReference::set);
-      })
+      Observable.just(ruleServiceAtomicReference.get())
       .flatMap(ruleService -> {
 
         JsonObject json = new JsonObject()

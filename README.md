@@ -40,7 +40,10 @@ Nothing yet
       "db_directory": <string>
     }
     
-If the embedded H2 data base is used, the location mentioned by db_directory will be used to store the databse. If an
+If the embedded H2 data base is used, the location mentioned by db_directory will be used to store the databse. If not specified, /tmp/data/bpmdb
+ will be used for the directory. 
+ 
+If an
 external database is used like Postgresql or MariaDB, this will be ignored.
 
 ## Configuration Example

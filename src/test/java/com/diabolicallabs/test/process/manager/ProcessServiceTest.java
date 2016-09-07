@@ -1,9 +1,7 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
-import com.diabolicallabs.process.manager.rxjava.service.KnowledgeServiceFactory;
-import com.diabolicallabs.process.manager.rxjava.service.ProcessInstanceService;
-import com.diabolicallabs.process.manager.rxjava.service.ProcessService;
+import com.diabolicallabs.process.manager.rxjava.service.*;
 import com.diabolicallabs.process.manager.service.ProcessState;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -12,12 +10,11 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
 import io.vertx.rxjava.core.Vertx;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import rx.Observable;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -26,14 +23,54 @@ public class ProcessServiceTest {
 
   Logger logger = LoggerFactory.getLogger(ProcessServiceTest.class);
 
+  AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
+  AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
+  AtomicReference<TaskService> taskServiceAtomicReference = new AtomicReference<>();
+  AtomicReference<RuleService> ruleServiceAtomicReference = new AtomicReference<>();
+
   @Rule
   public RunTestOnContext rule = new RunTestOnContext();
 
   @Before
   public void before(TestContext context) {
 
-    rule.vertx().deployVerticle(Verticle.class.getName(), context.asyncAssertSuccess());
+    Async async = context.async();
 
+    rule.vertx().deployVerticle(Verticle.class.getName(), handler -> {
+
+      Vertx rxVertx = new Vertx(rule.vertx());
+      KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
+
+      Observable.just(knowledgeServiceFactory)
+        .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
+        .doOnNext(knowledgeServiceAtomicReference::set)
+        .flatMap(service -> {
+          return Observable.merge(
+            service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2"),
+            service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")
+          ).last()
+            .flatMap(nothing -> {
+              return service.getProcessServiceObservable().doOnNext(processServiceAtomicReference::set);
+            })
+            .flatMap(nothing -> {
+              return service.getTaskServiceObservable().doOnNext(taskServiceAtomicReference::set);
+            })
+            .flatMap(nothing -> {
+              return service.getRuleServiceObservable().doOnNext(ruleServiceAtomicReference::set);
+            });
+        })
+        .subscribe(
+          context::assertNotNull,
+          context::fail,
+          async::complete
+        );
+    });
+
+  }
+
+  @After
+  public void after(TestContext context) {
+    knowledgeServiceAtomicReference.get().close();
   }
 
   @Test
@@ -44,21 +81,10 @@ public class ProcessServiceTest {
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
     Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
-          //VertxKieServerClientTest.KieServerClientTest
       })
       .flatMap(processInstanceService -> {
         instanceServiceAtomicReference.set(processInstanceService);
@@ -84,19 +110,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         return service.startProcessObservable("VertxKieServerClientTest.KieServerClientTest");
       })
@@ -118,19 +132,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -158,19 +160,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
       })
@@ -190,19 +180,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
       })
@@ -225,19 +203,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
       })
@@ -260,19 +226,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
       })
@@ -295,19 +249,7 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -344,23 +286,9 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          })
-          .doOnNext(processServiceAtomicReference::set);
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -397,23 +325,9 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          })
-          .doOnNext(processServiceAtomicReference::set);
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -450,19 +364,7 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          });
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -485,23 +387,9 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          })
-          .doOnNext(processServiceAtomicReference::set);
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -530,23 +418,9 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
 
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2");
-          })
-          .flatMap(nothing -> {
-            return service.getProcessServiceObservable();
-          })
-          .doOnNext(processServiceAtomicReference::set);
-      })
+    Observable.just(processServiceAtomicReference.get())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -568,22 +442,4 @@ public class ProcessServiceTest {
       );
   }
 
-  @Test
-  public void testAddKnowledgeResource(TestContext context) {
-
-    Async async = context.async();
-
-    Vertx rxVertx = new Vertx(rule.vertx());
-    KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-      .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2");
-      })
-      .subscribe(
-        context::assertNull,
-        context::fail,
-        async::complete
-      );
-  }
 }

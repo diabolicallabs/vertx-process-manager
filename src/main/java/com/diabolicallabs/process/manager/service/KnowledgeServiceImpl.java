@@ -30,11 +30,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   private Logger logger = LoggerFactory.getLogger(KnowledgeServiceImpl.class);
 
   private Vertx vertx;
+  private JsonObject config;
   private String address;
   private String taskAddress;
 
   private KieBase kieBase;
   private RuntimeEngine runtime;
+  RuntimeManager manager;
   private RuntimeEnvironmentBuilder environmentBuilder;
 
   ProcessService processService;
@@ -45,8 +47,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   MessageConsumer<JsonObject> ruleServiceConsumer;
   MessageConsumer<JsonObject> taskServiceConsumer;
 
-  public KnowledgeServiceImpl(Vertx vertx, String address) {
+  public KnowledgeServiceImpl(Vertx vertx, JsonObject config, String address) {
     this.vertx = vertx;
+    this.config = config;
     this.address = address;
     taskAddress = address + ".user.task";
     environmentBuilder = RuntimeEnvironmentBuilder.Factory.get().newDefaultInMemoryBuilder();
@@ -56,16 +59,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     if (runtime != null) return;
 
-    PoolingDataSource ds = new PoolingDataSource();
-    ds.setUniqueName("jdbc/jbpm");
-    ds.setClassName("org.h2.jdbcx.JdbcDataSource");
-    ds.setMaxPoolSize(3);
-    ds.setAllowLocalTransactions(true);
-    ds.getDriverProperties().put("user", "sa");
-    ds.getDriverProperties().put("password", "sasa");
-    ds.getDriverProperties().put("URL", "jdbc:h2:file:/tmp/data/process-instance-db");
-    ds.init();
-
     EntityManagerFactory emf = Persistence.createEntityManagerFactory("org.jbpm.persistence.jpa");
     environmentBuilder.entityManagerFactory(emf);
     environmentBuilder.userGroupCallback(new VertxUserGroupCallback());
@@ -73,7 +66,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     RuntimeEnvironment environment = environmentBuilder.get();
     kieBase = environment.getKieBase();
 
-    RuntimeManager manager = RuntimeManagerFactory.Factory.get().newSingletonRuntimeManager(environment);
+    manager = RuntimeManagerFactory.Factory.get().newPerProcessInstanceRuntimeManager(environment, address);
     runtime = manager.getRuntimeEngine(EmptyContext.get());
 
     EventService<TaskLifeCycleEventListener> taskService = (EventService<TaskLifeCycleEventListener>) runtime.getTaskService();
@@ -196,8 +189,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     if (processServiceConsumer != null) ProxyHelper.unregisterService(processServiceConsumer);
     if (ruleServiceConsumer != null) ProxyHelper.unregisterService(ruleServiceConsumer);
     if (taskServiceConsumer != null) ProxyHelper.unregisterService(taskServiceConsumer);
-    runtime.getKieSession().dispose();
-    runtime.getAuditService().dispose();
+    manager.disposeRuntimeEngine(runtime);
   }
 
 }
