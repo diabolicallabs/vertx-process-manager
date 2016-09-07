@@ -1,6 +1,6 @@
 # BPM and Business Rules for Eclipse Vert.x
 This module allows you to execute BPMN processes and business rules written for JBoss BPMS/jBPM and JBoss BRMS/Drools.
-No external server is required. The runtime engine needed to execute the rules and processes is imbedded.
+No external server is required. The runtime engine needed to execute the rules and processes is embedded.
 
 Many process and business rule applications can be deployed to a Vert.x cluster. Each application can have many knowledge bases
 and process sessions. The knowledge bases and sessions have unique addresses on the Event Bus. Because of this,
