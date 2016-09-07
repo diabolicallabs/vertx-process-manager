@@ -33,6 +33,27 @@ var RuleService = function(j_val) {
   /**
 
    @public
+   @param factHandle {string} 
+   @param handler {function} 
+   @return {RuleService}
+   */
+  this.delete = function(factHandle, handler) {
+    var __args = arguments;
+    if (__args.length === 2 && typeof __args[0] === 'string' && typeof __args[1] === 'function') {
+      j_ruleService["delete(java.lang.String,io.vertx.core.Handler)"](factHandle, function(ar) {
+      if (ar.succeeded()) {
+        handler(null, null);
+      } else {
+        handler(null, ar.cause());
+      }
+    });
+      return that;
+    } else throw new TypeError('function invoked with invalid arguments');
+  };
+
+  /**
+
+   @public
    @param handler {function} 
    @return {RuleService}
    */
@@ -53,14 +74,61 @@ var RuleService = function(j_val) {
   /**
 
    @public
-   @param fact {Object} 
+   @param queryName {string} 
+   @param resultName {string} 
    @param handler {function} 
    @return {RuleService}
    */
-  this.insert = function(fact, handler) {
+  this.getQueryResults = function(queryName, resultName, handler) {
     var __args = arguments;
-    if (__args.length === 2 && (typeof __args[0] === 'object' && __args[0] != null) && typeof __args[1] === 'function') {
-      j_ruleService["insert(io.vertx.core.json.JsonObject,io.vertx.core.Handler)"](utils.convParamJsonObject(fact), function(ar) {
+    if (__args.length === 3 && typeof __args[0] === 'string' && typeof __args[1] === 'string' && typeof __args[2] === 'function') {
+      j_ruleService["getQueryResults(java.lang.String,java.lang.String,io.vertx.core.Handler)"](queryName, resultName, function(ar) {
+      if (ar.succeeded()) {
+        handler(utils.convReturnJson(ar.result()), null);
+      } else {
+        handler(null, ar.cause());
+      }
+    });
+      return that;
+    } else throw new TypeError('function invoked with invalid arguments');
+  };
+
+  /**
+
+   @public
+   @param packageName {string} 
+   @param typeName {string} 
+   @param attributes {Object} 
+   @param handler {function} 
+   @return {RuleService}
+   */
+  this.insert = function(packageName, typeName, attributes, handler) {
+    var __args = arguments;
+    if (__args.length === 4 && typeof __args[0] === 'string' && typeof __args[1] === 'string' && (typeof __args[2] === 'object' && __args[2] != null) && typeof __args[3] === 'function') {
+      j_ruleService["insert(java.lang.String,java.lang.String,io.vertx.core.json.JsonObject,io.vertx.core.Handler)"](packageName, typeName, utils.convParamJsonObject(attributes), function(ar) {
+      if (ar.succeeded()) {
+        handler(ar.result(), null);
+      } else {
+        handler(null, ar.cause());
+      }
+    });
+      return that;
+    } else throw new TypeError('function invoked with invalid arguments');
+  };
+
+  /**
+
+   @public
+   @param factHandle {string} 
+   @param factType {string} 
+   @param attributes {Object} 
+   @param handler {function} 
+   @return {RuleService}
+   */
+  this.update = function(factHandle, factType, attributes, handler) {
+    var __args = arguments;
+    if (__args.length === 4 && typeof __args[0] === 'string' && typeof __args[1] === 'string' && (typeof __args[2] === 'object' && __args[2] != null) && typeof __args[3] === 'function') {
+      j_ruleService["update(java.lang.String,java.lang.String,io.vertx.core.json.JsonObject,io.vertx.core.Handler)"](factHandle, factType, utils.convParamJsonObject(attributes), function(ar) {
       if (ar.succeeded()) {
         handler(null, null);
       } else {

@@ -26,6 +26,14 @@ Tested with Eclipse Vert.x 3.3.2
     <version>0.8</version>
 </dependency>
 ```
+## Recent Changes
+Nothing yet
+
+## Future Plans
+* Use our Vert.x async implementation of the Human Task Manager
+* Provide persistence using Vert.x async database support rather than JPA/Hibernate
+
+
 ## Configuration
 
     {

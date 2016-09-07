@@ -18,6 +18,7 @@ package com.diabolicallabs.process.manager.rxjava.service;
 
 import java.util.Map;
 import rx.Observable;
+import io.vertx.core.json.JsonArray;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.AsyncResult;
@@ -41,6 +42,17 @@ public class RuleService {
     return ret;
   }
 
+  public RuleService delete(String factHandle, Handler<AsyncResult<Void>> handler) { 
+    delegate.delete(factHandle, handler);
+    return this;
+  }
+
+  public Observable<Void> deleteObservable(String factHandle) { 
+    io.vertx.rx.java.ObservableFuture<Void> handler = io.vertx.rx.java.RxHelper.observableFuture();
+    delete(factHandle, handler.toHandler());
+    return handler;
+  }
+
   public RuleService fireAllRules(Handler<AsyncResult<Integer>> handler) { 
     delegate.fireAllRules(handler);
     return this;
@@ -52,14 +64,36 @@ public class RuleService {
     return handler;
   }
 
-  public RuleService insert(JsonObject fact, Handler<AsyncResult<Void>> handler) { 
-    delegate.insert(fact, handler);
+  public RuleService getQueryResults(String queryName, String resultName, Handler<AsyncResult<JsonArray>> handler) { 
+    delegate.getQueryResults(queryName, resultName, handler);
     return this;
   }
 
-  public Observable<Void> insertObservable(JsonObject fact) { 
+  public Observable<JsonArray> getQueryResultsObservable(String queryName, String resultName) { 
+    io.vertx.rx.java.ObservableFuture<JsonArray> handler = io.vertx.rx.java.RxHelper.observableFuture();
+    getQueryResults(queryName, resultName, handler.toHandler());
+    return handler;
+  }
+
+  public RuleService insert(String packageName, String typeName, JsonObject attributes, Handler<AsyncResult<String>> handler) { 
+    delegate.insert(packageName, typeName, attributes, handler);
+    return this;
+  }
+
+  public Observable<String> insertObservable(String packageName, String typeName, JsonObject attributes) { 
+    io.vertx.rx.java.ObservableFuture<String> handler = io.vertx.rx.java.RxHelper.observableFuture();
+    insert(packageName, typeName, attributes, handler.toHandler());
+    return handler;
+  }
+
+  public RuleService update(String factHandle, String factType, JsonObject attributes, Handler<AsyncResult<Void>> handler) { 
+    delegate.update(factHandle, factType, attributes, handler);
+    return this;
+  }
+
+  public Observable<Void> updateObservable(String factHandle, String factType, JsonObject attributes) { 
     io.vertx.rx.java.ObservableFuture<Void> handler = io.vertx.rx.java.RxHelper.observableFuture();
-    insert(fact, handler.toHandler());
+    update(factHandle, factType, attributes, handler.toHandler());
     return handler;
   }
 

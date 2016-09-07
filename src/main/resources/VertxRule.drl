@@ -1,0 +1,25 @@
+package com.diabolicallabs.vertxkieserverclienttest;
+
+declare DragonballCharacter
+    name: String
+    race: String
+    age: int
+end
+
+query "characters"
+    character : DragonballCharacter()
+end
+
+rule "Found Goku"
+when
+    DragonballCharacter( name == "Goku" )
+then
+    System.out.println("found Goku");
+end
+
+rule "Found Gohan"
+when
+    DragonballCharacter( name == "Gohan" )
+then
+    System.out.println("found Gohan");
+end

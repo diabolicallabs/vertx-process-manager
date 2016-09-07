@@ -39,6 +39,7 @@ import io.vertx.serviceproxy.ProxyHelper;
 import io.vertx.serviceproxy.ProxyHandler;
 import io.vertx.serviceproxy.ServiceException;
 import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
+import io.vertx.core.json.JsonArray;
 import com.diabolicallabs.process.manager.service.RuleService;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
@@ -122,12 +123,24 @@ public class RuleServiceVertxProxyHandler extends ProxyHandler {
       accessed();
       switch (action) {
 
+        case "delete": {
+          service.delete((java.lang.String)json.getValue("factHandle"), createHandler(msg));
+          break;
+        }
         case "fireAllRules": {
           service.fireAllRules(createHandler(msg));
           break;
         }
+        case "getQueryResults": {
+          service.getQueryResults((java.lang.String)json.getValue("queryName"), (java.lang.String)json.getValue("resultName"), createHandler(msg));
+          break;
+        }
         case "insert": {
-          service.insert((io.vertx.core.json.JsonObject)json.getValue("fact"), createHandler(msg));
+          service.insert((java.lang.String)json.getValue("packageName"), (java.lang.String)json.getValue("typeName"), (io.vertx.core.json.JsonObject)json.getValue("attributes"), createHandler(msg));
+          break;
+        }
+        case "update": {
+          service.update((java.lang.String)json.getValue("factHandle"), (java.lang.String)json.getValue("factType"), (io.vertx.core.json.JsonObject)json.getValue("attributes"), createHandler(msg));
           break;
         }
         default: {

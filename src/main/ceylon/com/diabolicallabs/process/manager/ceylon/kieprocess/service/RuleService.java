@@ -11,6 +11,7 @@ import com.redhat.ceylon.compiler.java.runtime.model.TypeDescriptor;
 import com.redhat.ceylon.compiler.java.runtime.model.ReifiedType;
 import ceylon.language.Callable;
 import ceylon.language.DocAnnotation$annotation$;
+import io.vertx.core.json.JsonArray;
 import io.vertx.ceylon.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.AsyncResult;
@@ -55,6 +56,20 @@ public class RuleService implements ReifiedType {
   }
 
   @TypeInfo("com.diabolicallabs.process.manager.ceylon.kieprocess.service::RuleService")
+  public RuleService delete(
+    final @TypeInfo("ceylon.language::String") @Name("factHandle")  ceylon.language.String factHandle, 
+    final @TypeInfo("ceylon.language::Anything(ceylon.language::Throwable?)") @Name("handler")  Callable<?> handler) {
+    java.lang.String arg_0 = io.vertx.lang.ceylon.ToJava.String.safeConvert(factHandle);
+    io.vertx.core.Handler<io.vertx.core.AsyncResult<java.lang.Void>> arg_1 = handler == null ? null : new io.vertx.lang.ceylon.CallableAsyncResultHandler<java.lang.Void>(handler) {
+      public Object toCeylon(java.lang.Void event) {
+        return null;
+      }
+    };
+    RuleService ret = com.diabolicallabs.process.manager.ceylon.kieprocess.service.RuleService.TO_CEYLON.converter().safeConvert(delegate.delete(arg_0, arg_1));
+    return this;
+  }
+
+  @TypeInfo("com.diabolicallabs.process.manager.ceylon.kieprocess.service::RuleService")
   public RuleService fireAllRules(
     final @TypeInfo("ceylon.language::Anything(ceylon.language::Throwable|ceylon.language::Integer)") @Name("handler")  Callable<?> handler) {
     io.vertx.core.Handler<io.vertx.core.AsyncResult<java.lang.Integer>> arg_0 = handler == null ? null : new io.vertx.lang.ceylon.CallableAsyncResultHandler<java.lang.Integer>(handler) {
@@ -67,16 +82,54 @@ public class RuleService implements ReifiedType {
   }
 
   @TypeInfo("com.diabolicallabs.process.manager.ceylon.kieprocess.service::RuleService")
+  public RuleService getQueryResults(
+    final @TypeInfo("ceylon.language::String") @Name("queryName")  ceylon.language.String queryName, 
+    final @TypeInfo("ceylon.language::String") @Name("resultName")  ceylon.language.String resultName, 
+    final @TypeInfo("ceylon.language::Anything(ceylon.language::Throwable|ceylon.json::Array)") @Name("handler")  Callable<?> handler) {
+    java.lang.String arg_0 = io.vertx.lang.ceylon.ToJava.String.safeConvert(queryName);
+    java.lang.String arg_1 = io.vertx.lang.ceylon.ToJava.String.safeConvert(resultName);
+    io.vertx.core.Handler<io.vertx.core.AsyncResult<io.vertx.core.json.JsonArray>> arg_2 = handler == null ? null : new io.vertx.lang.ceylon.CallableAsyncResultHandler<io.vertx.core.json.JsonArray>(handler) {
+      public Object toCeylon(io.vertx.core.json.JsonArray event) {
+        return io.vertx.lang.ceylon.ToCeylon.JsonArray.safeConvert(event);
+      }
+    };
+    RuleService ret = com.diabolicallabs.process.manager.ceylon.kieprocess.service.RuleService.TO_CEYLON.converter().safeConvert(delegate.getQueryResults(arg_0, arg_1, arg_2));
+    return this;
+  }
+
+  @TypeInfo("com.diabolicallabs.process.manager.ceylon.kieprocess.service::RuleService")
   public RuleService insert(
-    final @TypeInfo("ceylon.json::Object") @Name("fact")  ceylon.json.Object fact, 
+    final @TypeInfo("ceylon.language::String") @Name("packageName")  ceylon.language.String packageName, 
+    final @TypeInfo("ceylon.language::String") @Name("typeName")  ceylon.language.String typeName, 
+    final @TypeInfo("ceylon.json::Object") @Name("attributes")  ceylon.json.Object attributes, 
+    final @TypeInfo("ceylon.language::Anything(ceylon.language::Throwable|ceylon.language::String)") @Name("handler")  Callable<?> handler) {
+    java.lang.String arg_0 = io.vertx.lang.ceylon.ToJava.String.safeConvert(packageName);
+    java.lang.String arg_1 = io.vertx.lang.ceylon.ToJava.String.safeConvert(typeName);
+    io.vertx.core.json.JsonObject arg_2 = io.vertx.lang.ceylon.ToJava.JsonObject.safeConvert(attributes);
+    io.vertx.core.Handler<io.vertx.core.AsyncResult<java.lang.String>> arg_3 = handler == null ? null : new io.vertx.lang.ceylon.CallableAsyncResultHandler<java.lang.String>(handler) {
+      public Object toCeylon(java.lang.String event) {
+        return io.vertx.lang.ceylon.ToCeylon.String.safeConvert(event);
+      }
+    };
+    RuleService ret = com.diabolicallabs.process.manager.ceylon.kieprocess.service.RuleService.TO_CEYLON.converter().safeConvert(delegate.insert(arg_0, arg_1, arg_2, arg_3));
+    return this;
+  }
+
+  @TypeInfo("com.diabolicallabs.process.manager.ceylon.kieprocess.service::RuleService")
+  public RuleService update(
+    final @TypeInfo("ceylon.language::String") @Name("factHandle")  ceylon.language.String factHandle, 
+    final @TypeInfo("ceylon.language::String") @Name("factType")  ceylon.language.String factType, 
+    final @TypeInfo("ceylon.json::Object") @Name("attributes")  ceylon.json.Object attributes, 
     final @TypeInfo("ceylon.language::Anything(ceylon.language::Throwable?)") @Name("handler")  Callable<?> handler) {
-    io.vertx.core.json.JsonObject arg_0 = io.vertx.lang.ceylon.ToJava.JsonObject.safeConvert(fact);
-    io.vertx.core.Handler<io.vertx.core.AsyncResult<java.lang.Void>> arg_1 = handler == null ? null : new io.vertx.lang.ceylon.CallableAsyncResultHandler<java.lang.Void>(handler) {
+    java.lang.String arg_0 = io.vertx.lang.ceylon.ToJava.String.safeConvert(factHandle);
+    java.lang.String arg_1 = io.vertx.lang.ceylon.ToJava.String.safeConvert(factType);
+    io.vertx.core.json.JsonObject arg_2 = io.vertx.lang.ceylon.ToJava.JsonObject.safeConvert(attributes);
+    io.vertx.core.Handler<io.vertx.core.AsyncResult<java.lang.Void>> arg_3 = handler == null ? null : new io.vertx.lang.ceylon.CallableAsyncResultHandler<java.lang.Void>(handler) {
       public Object toCeylon(java.lang.Void event) {
         return null;
       }
     };
-    RuleService ret = com.diabolicallabs.process.manager.ceylon.kieprocess.service.RuleService.TO_CEYLON.converter().safeConvert(delegate.insert(arg_0, arg_1));
+    RuleService ret = com.diabolicallabs.process.manager.ceylon.kieprocess.service.RuleService.TO_CEYLON.converter().safeConvert(delegate.update(arg_0, arg_1, arg_2, arg_3));
     return this;
   }
 
