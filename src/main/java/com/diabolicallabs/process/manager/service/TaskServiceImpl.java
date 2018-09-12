@@ -5,15 +5,8 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import org.kie.api.task.model.OrganizationalEntity;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class TaskServiceImpl implements TaskService {
 
@@ -87,7 +80,7 @@ public class TaskServiceImpl implements TaskService {
   @Override
   public TaskService getContent(Long taskId, Handler<AsyncResult<JsonObject>> handler) {
 
-    Map<String,Object> content = taskService.getTaskContent(taskId);
+    Map<String, Object> content = taskService.getTaskContent(taskId);
     JsonObject json = new JsonObject(content);
     handler.handle(Future.succeededFuture(json));
 

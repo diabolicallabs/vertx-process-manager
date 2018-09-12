@@ -6,17 +6,12 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.drools.core.marshalling.impl.ProtobufMessages;
-import org.drools.core.spi.FactHandleFactory;
 import org.kie.api.definition.type.FactType;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.QueryResultsRow;
-import org.kie.internal.runtime.helper.BatchExecutionHelper;
 
-import java.util.List;
 import java.util.Map;
 
 public class RuleServiceImpl implements RuleService {

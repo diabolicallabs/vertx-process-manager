@@ -1,20 +1,23 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
-import com.diabolicallabs.process.manager.rxjava.service.*;
+import com.diabolicallabs.process.manager.reactivex.service.*;
 import com.diabolicallabs.process.manager.service.ProcessState;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
-import io.vertx.rxjava.core.Vertx;
-import org.junit.*;
+import io.vertx.reactivex.core.Vertx;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
-import rx.Observable;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -41,29 +44,30 @@ public class ProcessServiceTest {
       Vertx rxVertx = new Vertx(rule.vertx());
       KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
 
-      Observable.just(knowledgeServiceFactory)
-        .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-        .doOnNext(knowledgeServiceAtomicReference::set)
-        .flatMap(service -> {
-          return Observable.merge(
-            service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2"),
-            service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")
-          ).last()
-            .flatMap(nothing -> {
-              return service.getProcessServiceObservable().doOnNext(processServiceAtomicReference::set);
-            })
-            .flatMap(nothing -> {
-              return service.getTaskServiceObservable().doOnNext(taskServiceAtomicReference::set);
-            })
-            .flatMap(nothing -> {
-              return service.getRuleServiceObservable().doOnNext(ruleServiceAtomicReference::set);
-            });
-        })
-        .subscribe(
-          context::assertNotNull,
-          context::fail,
-          async::complete
-        );
+      Single.just(knowledgeServiceFactory)
+          .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
+          .doOnSuccess(knowledgeServiceAtomicReference::set)
+          .flatMap(service -> {
+            return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
+                .andThen(service.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2"))
+                .toSingleDefault(service)
+                .flatMap(nothing -> {
+                  return service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set);
+                })
+                .flatMap(nothing -> {
+                  return service.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set);
+                })
+                .flatMap(nothing -> {
+                  return service.rxGetRuleService().doOnSuccess(ruleServiceAtomicReference::set);
+                });
+          })
+          .subscribe(
+              service -> {
+                context.assertNotNull(service);
+                async.complete();
+              },
+              context::assertNotNull
+          );
     });
 
   }
@@ -82,27 +86,28 @@ public class ProcessServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
-      })
-      .flatMap(processInstanceService -> {
-        instanceServiceAtomicReference.set(processInstanceService);
-        return processInstanceService.getInstanceIdObservable();
-      })
-      .doOnNext(id -> {
-        rxVertx.eventBus().consumer("kie.process.instance." + id + ".complete", handler -> {
-          async.complete();
-        });
-      })
-      .flatMap(nothing -> {
-        return instanceServiceAtomicReference.get().startObservable();
-      })
-      .subscribe(
-        context::assertNotNull,
-        context::fail
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
+        })
+        .flatMap(processInstanceService -> {
+          instanceServiceAtomicReference.set(processInstanceService);
+          return processInstanceService.rxGetInstanceId();
+        })
+        .doOnSuccess(id -> {
+          rxVertx.eventBus().consumer("kie.process.instance." + id + ".complete", handler -> {
+            async.complete();
+          });
+        })
+        .flatMap(nothing -> {
+          return instanceServiceAtomicReference.get().rxStart();
+        })
+        .subscribe(
+            context::assertNotNull,
+            context::fail
+        );
   }
+
   @Test
   public void testStartProcess(TestContext context) {
 
@@ -110,19 +115,21 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        return service.startProcessObservable("VertxKieServerClientTest.KieServerClientTest");
-      })
-      .doOnNext(instanceServiceAtomicReference::set)
-      .delay(3, TimeUnit.SECONDS)
-      .flatMap(ProcessInstanceService::getStateObservable)
-      .map(state -> state.equals(ProcessState.COMPLETED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          return service.rxStartProcess("VertxKieServerClientTest.KieServerClientTest");
+        })
+        .doOnSuccess(instanceServiceAtomicReference::set)
+        .delay(3, TimeUnit.SECONDS)
+        .flatMap(ProcessInstanceService::rxGetState)
+        .map(state -> state.equals(ProcessState.COMPLETED))
+        .subscribe(
+            completed -> {
+              context.assertTrue(completed);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -132,25 +139,27 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", false)
-          .put("doSignal", false)
-          .put("doSubprocess", true);
-        return service.startProcessWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .doOnNext(instanceServiceAtomicReference::set)
-      .delay(3, TimeUnit.SECONDS)
-      .flatMap(ProcessInstanceService::getStateObservable)
-      .map(state -> state.equals(ProcessState.COMPLETED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", false)
+              .put("doSignal", false)
+              .put("doSubprocess", true);
+          return service.rxStartProcessWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .doOnSuccess(instanceServiceAtomicReference::set)
+        .delay(3, TimeUnit.SECONDS)
+        .flatMap(ProcessInstanceService::rxGetState)
+        .map(state -> state.equals(ProcessState.COMPLETED))
+        .subscribe(
+            completed -> {
+              context.assertTrue(completed);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -160,17 +169,18 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
-      })
-      .flatMap(ProcessInstanceService::getInstanceIdObservable)
-
-      .subscribe(
-        context::assertNotNull,
-        context::fail,
-        async::complete
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
+        })
+        .flatMap(ProcessInstanceService::rxGetParentInstanceId)
+        .subscribe(
+            id -> {
+              context.assertNotNull(id);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -180,20 +190,22 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
-      })
-      .flatMap(ProcessInstanceService::getParentInstanceIdObservable)
-      .doOnNext(id -> {
-        logger.info("Parent process instance id: " + id);
-      })
-      .map(id -> id == 0l)
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
+        })
+        .flatMap(ProcessInstanceService::rxGetParentInstanceId)
+        .doOnSuccess(id -> {
+          logger.info("Parent process instance id: " + id);
+        })
+        .map(id -> id == 0l)
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -203,20 +215,22 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
-      })
-      .flatMap(ProcessInstanceService::getNameObservable)
-      .doOnNext(name -> {
-        logger.info("Process name: " + name);
-      })
-      .map(name -> name.equals("KieServerClientTest"))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
+        })
+        .flatMap(ProcessInstanceService::rxGetName)
+        .doOnSuccess(name -> {
+          logger.info("Process name: " + name);
+        })
+        .map(name -> name.equals("KieServerClientTest"))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -226,20 +240,22 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        return service.createObservable("VertxKieServerClientTest.KieServerClientTest");
-      })
-      .flatMap(ProcessInstanceService::getStateObservable)
-      .doOnNext(state -> {
-        logger.info("Process state: " + state);
-      })
-      .map(state -> state.equals(ProcessState.PENDING))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
+        })
+        .flatMap(ProcessInstanceService::rxGetState)
+        .doOnSuccess(state -> {
+          logger.info("Process state: " + state);
+        })
+        .map(state -> state.equals(ProcessState.PENDING))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -249,36 +265,38 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", false)
-          .put("doSignal", true)
-          .put("doSubprocess", false);
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", false)
+              .put("doSignal", true)
+              .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .doOnNext(instanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
-      .delay(1, TimeUnit.SECONDS)
-      .doOnNext(id -> {
-        instanceServiceAtomicReference.get().signalEventObservable("CatchSignal", null);
-      })
-      .delay(1, TimeUnit.SECONDS)
-      .flatMap(id -> {
-        return instanceServiceAtomicReference.get().getStateObservable();
-      })
-      .doOnNext(state -> {
-        logger.info("Process state: " + state);
-      })
-      .map(state -> state.equals(ProcessState.COMPLETED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+          return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .doOnSuccess(instanceServiceAtomicReference::set)
+        .flatMap(ProcessInstanceService::rxStart)
+        .delay(1, TimeUnit.SECONDS)
+        .doOnSuccess(id -> {
+          instanceServiceAtomicReference.get().rxSignalEvent("CatchSignal", null);
+        })
+        .delay(1, TimeUnit.SECONDS)
+        .flatMap(id -> {
+          return instanceServiceAtomicReference.get().rxGetState();
+        })
+        .doOnSuccess(state -> {
+          logger.info("Process state: " + state);
+        })
+        .map(state -> state.equals(ProcessState.COMPLETED))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -288,36 +306,38 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", false)
-          .put("doSignal", true)
-          .put("doSubprocess", false);
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", false)
+              .put("doSignal", true)
+              .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .doOnNext(instanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
-      .delay(1, TimeUnit.SECONDS)
-      .doOnNext(id -> {
-        processServiceAtomicReference.get().signalEventObservable("CatchSignal", null);
-      })
-      .delay(1, TimeUnit.SECONDS)
-      .flatMap(id -> {
-        return instanceServiceAtomicReference.get().getStateObservable();
-      })
-      .doOnNext(state -> {
-        logger.info("Process state: " + state);
-      })
-      .map(state -> state.equals(ProcessState.COMPLETED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+          return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .doOnSuccess(instanceServiceAtomicReference::set)
+        .flatMap(ProcessInstanceService::rxStart)
+        .delay(1, TimeUnit.SECONDS)
+        .doOnSuccess(id -> {
+          processServiceAtomicReference.get().rxSignalEvent("CatchSignal", null);
+        })
+        .delay(1, TimeUnit.SECONDS)
+        .flatMap(id -> {
+          return instanceServiceAtomicReference.get().rxGetState();
+        })
+        .doOnSuccess(state -> {
+          logger.info("Process state: " + state);
+        })
+        .map(state -> state.equals(ProcessState.COMPLETED))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -327,36 +347,38 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", false)
-          .put("doSignal", true)
-          .put("doSubprocess", false);
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", false)
+              .put("doSignal", true)
+              .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .doOnNext(instanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
-      .delay(1, TimeUnit.SECONDS)
-      .doOnNext(id -> {
-        processServiceAtomicReference.get().signalEventForProcessObservable("CatchSignal", id, null);
-      })
-      .delay(1, TimeUnit.SECONDS)
-      .flatMap(id -> {
-        return instanceServiceAtomicReference.get().getStateObservable();
-      })
-      .doOnNext(state -> {
-        logger.info("Process state: " + state);
-      })
-      .map(state -> state.equals(ProcessState.COMPLETED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+          return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .doOnSuccess(instanceServiceAtomicReference::set)
+        .flatMap(ProcessInstanceService::rxStart)
+        .delay(1, TimeUnit.SECONDS)
+        .doOnSuccess(id -> {
+          processServiceAtomicReference.get().rxSignalEventForProcess("CatchSignal", id, null);
+        })
+        .delay(1, TimeUnit.SECONDS)
+        .flatMap(id -> {
+          return instanceServiceAtomicReference.get().rxGetState();
+        })
+        .doOnSuccess(state -> {
+          logger.info("Process state: " + state);
+        })
+        .map(state -> state.equals(ProcessState.COMPLETED))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -364,22 +386,24 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", true)
-          .put("doSignal", false)
-          .put("doSubprocess", false);
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", true)
+              .put("doSignal", false)
+              .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .subscribe(
-        context::assertNotNull,
-        context::fail,
-        async::complete
-      );
+          return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .subscribe(
+            id -> {
+              context.assertNotNull(id);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
   @Test
@@ -389,27 +413,29 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", true)
-          .put("doSignal", false)
-          .put("doSubprocess", false);
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", true)
+              .put("doSignal", false)
+              .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::getInstanceIdObservable)
-      .flatMap(id -> processServiceAtomicReference.get().abortObservable(id))
-      .flatMap(nothing -> processInstanceServiceAtomicReference.get().getStateObservable())
-      .map(state -> state.equals(ProcessState.ABORTED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+          return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .doOnSuccess(processInstanceServiceAtomicReference::set)
+        .flatMap(ProcessInstanceService::rxGetInstanceId)
+        .flatMap(id -> processServiceAtomicReference.get().rxAbort(id).toSingleDefault(id))
+        .flatMap(nothing -> processInstanceServiceAtomicReference.get().rxGetState())
+        .map(state -> state.equals(ProcessState.ABORTED))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
 
@@ -420,26 +446,28 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
 
-    Observable.just(processServiceAtomicReference.get())
-      .flatMap(service -> {
-        JsonObject json = new JsonObject();
-        json.put("display", "Goats")
-          .put("doHuman", false)
-          .put("doTimer", true)
-          .put("doSignal", false)
-          .put("doSubprocess", false);
+    Single.just(processServiceAtomicReference.get())
+        .flatMap(service -> {
+          JsonObject json = new JsonObject();
+          json.put("display", "Goats")
+              .put("doHuman", false)
+              .put("doTimer", true)
+              .put("doSignal", false)
+              .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
-      })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::abortObservable)
-      .flatMap(nothing -> processInstanceServiceAtomicReference.get().getStateObservable())
-      .map(state -> state.equals(ProcessState.ABORTED))
-      .subscribe(
-        context::assertTrue,
-        context::fail,
-        async::complete
-      );
+          return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
+        })
+        .doOnSuccess(processInstanceServiceAtomicReference::set)
+        .doOnSuccess(ProcessInstanceService::rxAbort)
+        .flatMap(nothing -> processInstanceServiceAtomicReference.get().rxGetState())
+        .map(state -> state.equals(ProcessState.ABORTED))
+        .subscribe(
+            truth -> {
+              context.assertTrue(truth);
+              async.complete();
+            },
+            context::fail
+        );
   }
 
 }

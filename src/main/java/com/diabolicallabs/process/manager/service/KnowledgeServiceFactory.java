@@ -18,6 +18,7 @@ public interface KnowledgeServiceFactory {
     return ProxyHelper.createProxy(KnowledgeServiceFactory.class, vertx, address);
   }
 
-  @Fluent KnowledgeServiceFactory getKnowledgeService(Handler<AsyncResult<KnowledgeService>> handler);
+  @Fluent
+  KnowledgeServiceFactory getKnowledgeService(Handler<AsyncResult<KnowledgeService>> handler);
 
 }

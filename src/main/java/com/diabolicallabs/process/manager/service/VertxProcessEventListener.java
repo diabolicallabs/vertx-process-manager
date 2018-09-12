@@ -1,7 +1,6 @@
 package com.diabolicallabs.process.manager.service;
 
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.kie.api.event.process.*;

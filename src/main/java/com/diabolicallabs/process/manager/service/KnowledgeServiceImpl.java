@@ -1,6 +1,5 @@
 package com.diabolicallabs.process.manager.service;
 
-import bitronix.tm.resource.jdbc.PoolingDataSource;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -17,10 +16,12 @@ import org.kie.api.definition.process.Process;
 import org.kie.api.definition.process.WorkflowProcess;
 import org.kie.api.io.Resource;
 import org.kie.api.runtime.manager.*;
+import org.kie.api.runtime.process.ProcessRuntime;
 import org.kie.api.task.TaskLifeCycleEventListener;
 import org.kie.internal.io.ResourceFactory;
 import org.kie.internal.runtime.manager.context.EmptyContext;
 import org.kie.internal.task.api.EventService;
+import org.kie.internal.utils.KieHelper;
 
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
@@ -29,6 +30,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
   private Logger logger = LoggerFactory.getLogger(KnowledgeServiceImpl.class);
 
+  private Boolean built = false;
   private Vertx vertx;
   private JsonObject config;
   private String address;
@@ -36,15 +38,11 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
   private KieBase kieBase;
   private RuntimeEngine runtime;
-  RuntimeManager manager;
-  private RuntimeEnvironmentBuilder environmentBuilder;
+  private RuntimeEnvironment environment;
+  private RuntimeEnvironmentBuilder builder = RuntimeEnvironmentBuilder.Factory.get().newDefaultInMemoryBuilder();
+  private RuntimeManager manager;
 
-  ProcessService processService;
-  RuleService ruleService;
   TaskService taskService;
-
-  MessageConsumer<JsonObject> processServiceConsumer;
-  MessageConsumer<JsonObject> ruleServiceConsumer;
   MessageConsumer<JsonObject> taskServiceConsumer;
 
   public KnowledgeServiceImpl(Vertx vertx, JsonObject config, String address) {
@@ -52,35 +50,15 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     this.config = config;
     this.address = address;
     taskAddress = address + ".user.task";
-    environmentBuilder = RuntimeEnvironmentBuilder.Factory.get().newDefaultInMemoryBuilder();
-  }
-
-  private void generateRuntime() {
-
-    if (runtime != null) return;
-
-    EntityManagerFactory emf = Persistence.createEntityManagerFactory("org.jbpm.persistence.jpa");
-    environmentBuilder.entityManagerFactory(emf);
-    environmentBuilder.userGroupCallback(new VertxUserGroupCallback());
-
-    RuntimeEnvironment environment = environmentBuilder.get();
-    kieBase = environment.getKieBase();
-
-    manager = RuntimeManagerFactory.Factory.get().newPerProcessInstanceRuntimeManager(environment, address);
-    runtime = manager.getRuntimeEngine(EmptyContext.get());
-
-    EventService<TaskLifeCycleEventListener> taskService = (EventService<TaskLifeCycleEventListener>) runtime.getTaskService();
-    taskService.registerTaskEventListener(new VertxTaskEventListener(vertx, taskAddress));
-
   }
 
   @Override
   public KnowledgeService addClassPathResource(String resourceName, Handler<AsyncResult<Void>> handler) {
 
     Resource resource = ResourceFactory.newClassPathResource(resourceName);
-    environmentBuilder.addAsset(resource, resource.getResourceType());
-
+    builder.addAsset(resource, resource.getResourceType());
     handler.handle(Future.succeededFuture());
+
     return this;
   }
 
@@ -88,16 +66,19 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   public KnowledgeService addFileResource(String fileName, Handler<AsyncResult<Void>> handler) {
 
     Resource resource = ResourceFactory.newFileResource(fileName);
-    environmentBuilder.addAsset(resource, resource.getResourceType());
-
+    builder.addAsset(resource, resource.getResourceType());
     handler.handle(Future.succeededFuture());
+
     return this;
   }
 
   @Override
   public KnowledgeService processDefinitions(Handler<AsyncResult<JsonArray>> handler) {
 
-    generateRuntime();
+    if (!built) {
+      handler.handle(Future.failedFuture("KnowledgeService is not built yet"));
+      return this;
+    }
 
     JsonArray processDefinitions = new JsonArray();
     for (Process process : kieBase.getProcesses()) {
@@ -108,10 +89,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         logger.info("meta: " + node.getMetaData());
       }
       JsonObject json = new JsonObject()
-        .put("id", process.getId())
-        .put("name", process.getName())
-        .put("packageName", process.getPackageName())
-        .put("version", process.getVersion());
+          .put("id", process.getId())
+          .put("name", process.getName())
+          .put("packageName", process.getPackageName())
+          .put("version", process.getVersion());
 
       processDefinitions.add(json);
     }
@@ -121,52 +102,31 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   }
 
   @Override
-  public KnowledgeService getProcessService(Handler<AsyncResult<ProcessService>> handler) {
+  public KnowledgeService getSessionService(Handler<AsyncResult<SessionService>> handler) {
 
-    if (processService == null) {
-
-      String serviceAddress = address + ".ProcessService";
-
-      generateRuntime();
-
-      ProcessServiceImpl serviceImpl = new ProcessServiceImpl(vertx, serviceAddress, runtime.getKieSession());
-      processServiceConsumer = ProxyHelper.registerService(ProcessService.class, vertx, serviceImpl, serviceAddress);
-
-      processService = ProcessService.createProxy(vertx, serviceAddress);
+    if (!built) {
+      handler.handle(Future.failedFuture("KnowledgeService is not built yet"));
+      return this;
     }
-    handler.handle(Future.succeededFuture(processService));
 
-    return this;
-  }
+    String serviceAddress = address + ".SessionService";
+    SessionServiceImpl serviceImpl = new SessionServiceImpl(vertx, config, serviceAddress, runtime.getKieSession());
+    ProxyHelper.registerService(SessionService.class, vertx, serviceImpl, serviceAddress);
 
-  @Override
-  public KnowledgeService getRuleService(Handler<AsyncResult<RuleService>> handler) {
-
-    if (ruleService == null) {
-
-      String serviceAddress = address + ".RuleService";
-
-      generateRuntime();
-
-      RuleServiceImpl serviceImpl = new RuleServiceImpl(vertx, serviceAddress, runtime.getKieSession());
-      ruleServiceConsumer = ProxyHelper.registerService(RuleService.class, vertx, serviceImpl, serviceAddress);
-
-      ruleService = RuleService.createProxy(vertx, serviceAddress);
-    }
-    handler.handle(Future.succeededFuture(ruleService));
-
+    handler.handle(Future.succeededFuture(SessionService.createProxy(vertx, serviceAddress)));
     return this;
   }
 
   @Override
   public KnowledgeService getTaskService(Handler<AsyncResult<TaskService>> handler) {
 
+    if (!built) {
+      handler.handle(Future.failedFuture("KnowledgeService is not built yet"));
+      return this;
+    }
+
     if (taskService == null) {
-
       String serviceAddress = address + ".TaskService";
-
-      generateRuntime();
-
       TaskServiceImpl serviceImpl = new TaskServiceImpl(vertx, serviceAddress, runtime.getTaskService());
       taskServiceConsumer = ProxyHelper.registerService(TaskService.class, vertx, serviceImpl, serviceAddress);
 
@@ -184,12 +144,18 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   }
 
   @Override
-  public void close() {
+  public KnowledgeService build(Handler<AsyncResult<Void>> handler) {
+    environment = builder.get();
+    kieBase = environment.getKieBase();
+    manager = RuntimeManagerFactory.Factory.get().newSingletonRuntimeManager(environment);
+    runtime = manager.getRuntimeEngine(EmptyContext.get());
+    built = true;
 
-    if (processServiceConsumer != null) ProxyHelper.unregisterService(processServiceConsumer);
-    if (ruleServiceConsumer != null) ProxyHelper.unregisterService(ruleServiceConsumer);
-    if (taskServiceConsumer != null) ProxyHelper.unregisterService(taskServiceConsumer);
-    manager.disposeRuntimeEngine(runtime);
+    return this;
   }
 
+  @Override
+  public void close() {
+    if (taskServiceConsumer != null) ProxyHelper.unregisterService(taskServiceConsumer);
+  }
 }

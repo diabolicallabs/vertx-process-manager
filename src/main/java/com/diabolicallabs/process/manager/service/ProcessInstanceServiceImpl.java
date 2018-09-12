@@ -27,7 +27,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
   @Override
   public ProcessInstanceService start(Handler<AsyncResult<Long>> handler) {
-    
+
     kieSession.startProcessInstance(instance.getId());
     handler.handle(Future.succeededFuture(instance.getId()));
 

@@ -1,26 +1,23 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
-import com.diabolicallabs.process.manager.rxjava.service.*;
-import com.diabolicallabs.process.manager.service.UserTask;
+import com.diabolicallabs.process.manager.reactivex.service.*;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
-import io.vertx.rxjava.core.Vertx;
+import io.vertx.reactivex.core.Vertx;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import rx.Observable;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static com.diabolicallabs.process.manager.service.VertxTaskEventListener.*;
 
 @RunWith(io.vertx.ext.unit.junit.VertxUnitRunner.class)
 public class RuleServiceTest {
@@ -45,25 +42,29 @@ public class RuleServiceTest {
       Vertx rxVertx = new Vertx(rule.vertx());
       KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
 
-      Observable.just(knowledgeServiceFactory)
-        .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-        .doOnNext(knowledgeServiceAtomicReference::set)
+      Single.just(knowledgeServiceFactory)
+        .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
+        .doOnSuccess(knowledgeServiceAtomicReference::set)
         .flatMap(service -> {
-          return service.addClassPathResourceObservable("VertxRule.drl").last()
+          return service.rxAddClassPathResource("VertxRule.drl").andThen(service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set))
             .flatMap(nothing -> {
-              return service.getProcessServiceObservable().doOnNext(processServiceAtomicReference::set);
+              return service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set);
             })
             .flatMap(nothing -> {
-              return service.getTaskServiceObservable().doOnNext(taskServiceAtomicReference::set);
+              return service.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set);
             })
             .flatMap(nothing -> {
-              return service.getRuleServiceObservable().doOnNext(ruleServiceAtomicReference::set);
+              return service.rxGetRuleService().doOnSuccess(ruleServiceAtomicReference::set);
             });
         })
         .subscribe(
-          context::assertNotNull,
-          context::fail,
-          async::complete
+            nothing -> {
+              context.assertNotNull(processServiceAtomicReference.get());
+              context.assertNotNull(taskServiceAtomicReference.get());
+              context.assertNotNull(ruleServiceAtomicReference.get());
+              async.complete();
+            },
+          context::fail
         );
     });
 
@@ -79,7 +80,7 @@ public class RuleServiceTest {
 
     Async async = context.async();
 
-      Observable.just(ruleServiceAtomicReference.get())
+      Single.just(ruleServiceAtomicReference.get())
       .flatMap(ruleService -> {
 
         JsonObject json = new JsonObject()
@@ -87,17 +88,19 @@ public class RuleServiceTest {
             .put("age", 737)
             .put("race", "Saiyan");
 
-        return ruleService.insertObservable("com.diabolicallabs.vertxkieserverclienttest", "DragonballCharacter", json);
+        return ruleService.rxInsert("com.diabolicallabs.vertxkieserverclienttest", "DragonballCharacter", json);
       })
-      .doOnNext(factHandle -> System.out.println("Fact handle: " + factHandle))
-      .flatMap(factHandle -> ruleServiceAtomicReference.get().fireAllRulesObservable())
-      .doOnNext(numFired -> System.out.println("Rules fired: " + numFired))
-      .flatMap(nothing -> ruleServiceAtomicReference.get().getQueryResultsObservable("characters", "character"))
-      .doOnNext(objects -> System.out.println(objects.encodePrettily()))
+      .doOnSuccess(factHandle -> System.out.println("Fact handle: " + factHandle))
+      .flatMap(factHandle -> ruleServiceAtomicReference.get().rxFireAllRules())
+      .doOnSuccess(numFired -> System.out.println("Rules fired: " + numFired))
+      .flatMap(nothing -> ruleServiceAtomicReference.get().rxGetQueryResults("characters", "character"))
+      .doOnSuccess(objects -> System.out.println(objects.encodePrettily()))
       .subscribe(
-        context::assertNotNull,
-        context::fail,
-        async::complete
+          objects -> {
+            context.assertNotNull(objects);
+            async.complete();
+          },
+        context::fail
       );
   }
 

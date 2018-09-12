@@ -54,7 +54,7 @@ public class UserTask {
     status = task.getTaskData().getStatus().name();
 
     potentialOwners = task.getPeopleAssignments().getPotentialOwners()
-      .stream().map(OrganizationalEntity::getId).collect(Collectors.toList());
+        .stream().map(OrganizationalEntity::getId).collect(Collectors.toList());
 
   }
 

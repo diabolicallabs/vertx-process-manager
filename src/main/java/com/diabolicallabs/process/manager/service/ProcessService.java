@@ -19,11 +19,24 @@ public interface ProcessService {
     return ProxyHelper.createProxy(ProcessService.class, vertx, address);
   }
 
-  @Fluent ProcessService abort(Long processInstanceId, Handler<AsyncResult<Void>> handler);
-  @Fluent ProcessService create(String processId, Handler<AsyncResult<ProcessInstanceService>> handler);
-  @Fluent ProcessService createWithVariables(String processId, JsonObject variables, Handler<AsyncResult<ProcessInstanceService>> handler);
-  @Fluent ProcessService signalEvent(String eventName, JsonObject data, Handler<AsyncResult<Void>> handler);
-  @Fluent ProcessService signalEventForProcess(String eventName, Long processInstanceId, JsonObject data, Handler<AsyncResult<Void>> handler);
-  @Fluent ProcessService startProcess(String processId, Handler<AsyncResult<ProcessInstanceService>> handler);
-  @Fluent ProcessService startProcessWithVariables(String processId, JsonObject jsonObject, Handler<AsyncResult<ProcessInstanceService>> handler);
+  @Fluent
+  ProcessService abort(Long processInstanceId, Handler<AsyncResult<Void>> handler);
+
+  @Fluent
+  ProcessService create(String processId, Handler<AsyncResult<ProcessInstanceService>> handler);
+
+  @Fluent
+  ProcessService createWithVariables(String processId, JsonObject variables, Handler<AsyncResult<ProcessInstanceService>> handler);
+
+  @Fluent
+  ProcessService signalEvent(String eventName, JsonObject data, Handler<AsyncResult<Void>> handler);
+
+  @Fluent
+  ProcessService signalEventForProcess(String eventName, Long processInstanceId, JsonObject data, Handler<AsyncResult<Void>> handler);
+
+  @Fluent
+  ProcessService startProcess(String processId, Handler<AsyncResult<ProcessInstanceService>> handler);
+
+  @Fluent
+  ProcessService startProcessWithVariables(String processId, JsonObject jsonObject, Handler<AsyncResult<ProcessInstanceService>> handler);
 }

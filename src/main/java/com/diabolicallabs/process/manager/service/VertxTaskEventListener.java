@@ -2,16 +2,10 @@ package com.diabolicallabs.process.manager.service;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.kie.api.task.TaskEvent;
 import org.kie.api.task.TaskLifeCycleEventListener;
-import org.kie.api.task.model.I18NText;
-import org.kie.api.task.model.OrganizationalEntity;
-import org.kie.api.task.model.Task;
-
-import java.util.stream.Collectors;
 
 public class VertxTaskEventListener implements TaskLifeCycleEventListener {
 

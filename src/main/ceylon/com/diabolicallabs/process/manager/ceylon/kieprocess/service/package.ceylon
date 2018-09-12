@@ -1,1 +1,0 @@
-shared package com.diabolicallabs.process.manager.ceylon.kieprocess.service;

@@ -1,21 +1,22 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
-import com.diabolicallabs.process.manager.rxjava.service.*;
+import com.diabolicallabs.process.manager.reactivex.service.*;
 import com.diabolicallabs.process.manager.service.UserTask;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
-import io.vertx.rxjava.core.Vertx;
+import io.vertx.reactivex.core.Vertx;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import rx.Observable;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,28 +46,28 @@ public class TaskServiceTest {
       Vertx rxVertx = new Vertx(rule.vertx());
       KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
 
-      Observable.just(knowledgeServiceFactory)
-        .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
-        .doOnNext(knowledgeServiceAtomicReference::set)
+      Single.just(knowledgeServiceFactory)
+        .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
+        .doOnSuccess(knowledgeServiceAtomicReference::set)
         .flatMap(service -> {
-          return Observable.merge(
-            service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2"),
-            service.addClassPathResourceObservable("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")
-          ).last()
+          return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
+              .andThen(service.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")).toSingleDefault(service)
             .flatMap(nothing -> {
-              return service.getProcessServiceObservable().doOnNext(processServiceAtomicReference::set);
+              return service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set);
             })
             .flatMap(nothing -> {
-              return service.getTaskServiceObservable().doOnNext(taskServiceAtomicReference::set);
+              return service.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set);
             })
             .flatMap(nothing -> {
-              return service.getRuleServiceObservable().doOnNext(ruleServiceAtomicReference::set);
+              return service.rxGetRuleService().doOnSuccess(ruleServiceAtomicReference::set);
             });
         })
         .subscribe(
-          context::assertNotNull,
-          context::fail,
-          async::complete
+            object -> {
+              async.complete();
+              context.assertNotNull(object);
+            },
+          context::fail
         );
     });
 
@@ -85,9 +86,9 @@ public class TaskServiceTest {
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -114,7 +115,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -123,10 +124,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -143,9 +144,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -172,7 +173,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -181,10 +182,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -201,9 +202,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -229,7 +230,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -238,10 +239,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -258,9 +259,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -286,7 +287,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -295,10 +296,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -315,9 +316,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -343,7 +344,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -352,10 +353,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -372,9 +373,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -402,7 +403,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -411,10 +412,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -431,9 +432,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -459,7 +460,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -468,10 +469,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -488,9 +489,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -514,7 +515,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -523,10 +524,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -543,9 +544,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -569,7 +570,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -578,10 +579,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,
@@ -599,9 +600,9 @@ public class TaskServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Observable.just(knowledgeServiceAtomicReference.get())
-      .flatMap(KnowledgeService::getTaskServiceAddressObservable)
-      .doOnNext(address -> {
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetTaskServiceAddress)
+      .doOnSuccess(address -> {
 
         rxVertx.eventBus().consumer(address, handler -> {
 
@@ -623,7 +624,7 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().getProcessServiceObservable())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -633,10 +634,10 @@ public class TaskServiceTest {
           .put("doSignal", false)
           .put("doSubprocess", false);
 
-        return service.createWithVariablesObservable("VertxKieServerClientTest.KieServerClientTest", json);
+        return service.rxCreateWithVariables("VertxKieServerClientTest.KieServerClientTest", json);
       })
-      .doOnNext(processInstanceServiceAtomicReference::set)
-      .flatMap(ProcessInstanceService::startObservable)
+      .doOnSuccess(processInstanceServiceAtomicReference::set)
+      .flatMap(ProcessInstanceService::rxStart)
       .delay(5, TimeUnit.SECONDS)
       .subscribe(
         context::assertNotNull,

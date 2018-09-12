@@ -1,19 +1,19 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
-import com.diabolicallabs.process.manager.rxjava.service.KnowledgeService;
-import com.diabolicallabs.process.manager.rxjava.service.KnowledgeServiceFactory;
+import com.diabolicallabs.process.manager.reactivex.service.KnowledgeServiceFactory;
+import io.reactivex.Observable;
+import io.reactivex.Single;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
-import io.vertx.rxjava.core.Vertx;
+import io.vertx.reactivex.core.Vertx;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import rx.Observable;
 
 @RunWith(io.vertx.ext.unit.junit.VertxUnitRunner.class)
 public class KnowledgeServiceTest {
@@ -37,21 +37,21 @@ public class KnowledgeServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
     KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
+    Single.just(knowledgeServiceFactory)
+      .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
       .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-          .flatMap(nothing -> {
-            return service.processDefinitionsObservable();
-          });
+        return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
+            .toSingleDefault(service.rxProcessDefinitions());
       })
-      .doOnNext(definitions -> {
-        System.out.println(definitions.encodePrettily());
+      .doOnSuccess(definitions -> {
+        System.out.println(definitions.blockingGet().encodePrettily());
       })
       .subscribe(
-        context::assertNotNull,
-        context::fail,
-        async::complete
+          definitions -> {
+            context.assertTrue(definitions.blockingGet().size() > 0);
+            async.complete();
+          },
+        context::fail
       );
   }
 
@@ -62,15 +62,18 @@ public class KnowledgeServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
     KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
-    Observable.just(knowledgeServiceFactory)
-      .flatMap(KnowledgeServiceFactory::getKnowledgeServiceObservable)
+    Single.just(knowledgeServiceFactory)
+      .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
       .flatMap(service -> {
-        return service.addClassPathResourceObservable("org.jbpm.KieServerClientTest.v1.0.bpmn2");
+        return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
+            .toSingleDefault(service);
       })
       .subscribe(
-        context::assertNull,
-        context::fail,
-        async::complete
+          service -> {
+            context.assertNotNull(service);
+            async.complete();
+          },
+        context::fail
       );
   }
 }

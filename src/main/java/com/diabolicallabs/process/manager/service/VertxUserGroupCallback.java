@@ -4,6 +4,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.kie.api.task.UserGroupCallback;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class VertxUserGroupCallback implements UserGroupCallback {
@@ -24,8 +25,7 @@ public class VertxUserGroupCallback implements UserGroupCallback {
   }
 
   @Override
-  public List<String> getGroupsForUser(String s, List<String> list, List<String> list1) {
-    logger.debug("Check if group exists for user: " + s);
-    return list;
+  public List<String> getGroupsForUser(String s) {
+    return new ArrayList<>();
   }
 }

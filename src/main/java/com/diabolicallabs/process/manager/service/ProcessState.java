@@ -11,6 +11,12 @@ public enum ProcessState {
   SUSPENDED(ProcessInstance.STATE_SUSPENDED);
 
   private int value;
-  ProcessState(int value) { this.value = value; }
-  public int getValue() { return value; }
+
+  ProcessState(int value) {
+    this.value = value;
+  }
+
+  public int getValue() {
+    return value;
+  }
 }

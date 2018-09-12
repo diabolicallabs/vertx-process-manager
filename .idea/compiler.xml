@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="!?*.java" />
       <entry name="!?*.form" />
@@ -13,16 +12,11 @@
       <entry name="!?*.clj" />
     </wildcardResourcePatterns>
     <annotationProcessing>
-      <profile default="true" name="Default" enabled="false">
-        <processorPath useClasspath="true" />
-      </profile>
-      <profile default="false" name="Annotation profile for Process Manager for Eclipse Vert.x" enabled="true">
-        <sourceOutputDir name="src/main/generated" />
+      <profile name="Annotation profile for Process Manager for Eclipse Vert.x" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <option name="outputDirectory" value="$PROJECT_DIR$/src/main" />
         <processor name="io.vertx.codegen.CodeGenProcessor" />
-        <processorPath useClasspath="true" />
         <module name="vertx-process-manager" />
       </profile>
     </annotationProcessing>
