@@ -6,6 +6,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.serviceproxy.ProxyHelper;
+import io.vertx.serviceproxy.ServiceBinder;
 
 import java.util.UUID;
 
@@ -26,7 +27,10 @@ public class KnowledgeServiceFactoryImpl implements KnowledgeServiceFactory {
     String address = "KnowledgeService." + id;
 
     KnowledgeServiceImpl serviceImpl = new KnowledgeServiceImpl(vertx, config, address);
-    ProxyHelper.registerService(KnowledgeService.class, vertx, serviceImpl, address);
+
+    new ServiceBinder(vertx)
+        .setAddress(address)
+        .register(KnowledgeService.class, serviceImpl);
 
     KnowledgeService service = KnowledgeService.createProxy(vertx, address);
     handler.handle(Future.succeededFuture(service));

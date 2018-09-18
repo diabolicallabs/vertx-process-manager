@@ -10,6 +10,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.serviceproxy.ProxyHelper;
+import io.vertx.serviceproxy.ServiceBinder;
 import org.kie.api.KieBase;
 import org.kie.api.definition.process.Node;
 import org.kie.api.definition.process.Process;
@@ -25,6 +26,7 @@ import org.kie.internal.utils.KieHelper;
 
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import java.lang.reflect.Proxy;
 
 public class KnowledgeServiceImpl implements KnowledgeService {
 
@@ -111,7 +113,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     String serviceAddress = address + ".SessionService";
     SessionServiceImpl serviceImpl = new SessionServiceImpl(vertx, config, serviceAddress, runtime.getKieSession());
-    ProxyHelper.registerService(SessionService.class, vertx, serviceImpl, serviceAddress);
+
+    new ServiceBinder(vertx)
+        .setAddress(serviceAddress)
+        .register(SessionService.class, serviceImpl);
 
     handler.handle(Future.succeededFuture(SessionService.createProxy(vertx, serviceAddress)));
     return this;
@@ -128,8 +133,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     if (taskService == null) {
       String serviceAddress = address + ".TaskService";
       TaskServiceImpl serviceImpl = new TaskServiceImpl(vertx, serviceAddress, runtime.getTaskService());
-      taskServiceConsumer = ProxyHelper.registerService(TaskService.class, vertx, serviceImpl, serviceAddress);
-
+      taskServiceConsumer = new ServiceBinder(vertx)
+          .setAddress(serviceAddress)
+          .register(TaskService.class, serviceImpl);
       taskService = TaskService.createProxy(vertx, serviceAddress);
     }
     handler.handle(Future.succeededFuture(taskService));
@@ -156,6 +162,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
   @Override
   public void close() {
-    if (taskServiceConsumer != null) ProxyHelper.unregisterService(taskServiceConsumer);
+    if (taskServiceConsumer != null) new ServiceBinder(vertx).unregister(taskServiceConsumer);
   }
 }

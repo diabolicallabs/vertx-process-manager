@@ -1,0 +1,7 @@
+{
+  "main": "com.diabolicallabs.process.manager.Verticle",
+  "options": {
+    "config": {
+    }
+  }
+}

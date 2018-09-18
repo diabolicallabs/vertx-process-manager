@@ -6,6 +6,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.serviceproxy.ProxyHelper;
+import io.vertx.serviceproxy.ServiceBinder;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.process.ProcessInstance;
 
@@ -55,7 +56,10 @@ public class ProcessServiceImpl implements ProcessService {
     }, result -> {
       if (result.succeeded()) {
         ProcessInstanceServiceImpl serviceImpl = new ProcessInstanceServiceImpl(vertx, serviceAddress, instance, kieSession);
-        ProxyHelper.registerService(ProcessInstanceService.class, vertx, serviceImpl, serviceAddress);
+
+        new ServiceBinder(vertx)
+            .setAddress(serviceAddress)
+            .register(ProcessInstanceService.class, serviceImpl);
 
         ProcessInstanceService service = ProcessInstanceService.createProxy(vertx, serviceAddress);
         handler.handle(Future.succeededFuture(service));
@@ -98,7 +102,10 @@ public class ProcessServiceImpl implements ProcessService {
     }, result -> {
       if (result.succeeded()) {
         ProcessInstanceServiceImpl serviceImpl = new ProcessInstanceServiceImpl(vertx, serviceAddress, instance, kieSession);
-        ProxyHelper.registerService(ProcessInstanceService.class, vertx, serviceImpl, serviceAddress);
+
+        new ServiceBinder(vertx)
+            .setAddress(serviceAddress)
+            .register(ProcessInstanceService.class, serviceImpl);
 
         ProcessInstanceService service = ProcessInstanceService.createProxy(vertx, serviceAddress);
         handler.handle(Future.succeededFuture(service));
@@ -123,7 +130,10 @@ public class ProcessServiceImpl implements ProcessService {
     }, result -> {
       if (result.succeeded()) {
         ProcessInstanceServiceImpl serviceImpl = new ProcessInstanceServiceImpl(vertx, serviceAddress, instance, kieSession);
-        ProxyHelper.registerService(ProcessInstanceService.class, vertx, serviceImpl, serviceAddress);
+
+        new ServiceBinder(vertx)
+            .setAddress(serviceAddress)
+            .register(ProcessInstanceService.class, serviceImpl);
 
         ProcessInstanceService service = ProcessInstanceService.createProxy(vertx, serviceAddress);
         handler.handle(Future.succeededFuture(service));

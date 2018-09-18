@@ -1,12 +1,13 @@
 package com.diabolicallabs.process.manager;
 
-
 import bitronix.tm.resource.jdbc.PoolingDataSource;
+import com.diabolicallabs.process.manager.service.KnowledgeService;
 import com.diabolicallabs.process.manager.service.KnowledgeServiceFactory;
 import com.diabolicallabs.process.manager.service.KnowledgeServiceFactoryImpl;
 import io.vertx.core.Future;
 import io.vertx.reactivex.core.AbstractVerticle;
 import io.vertx.serviceproxy.ProxyHelper;
+import io.vertx.serviceproxy.ServiceBinder;
 
 public class Verticle extends AbstractVerticle {
 
@@ -30,7 +31,10 @@ public class Verticle extends AbstractVerticle {
     }
 
     KnowledgeServiceFactoryImpl serviceImpl = new KnowledgeServiceFactoryImpl(getVertx(), config());
-    ProxyHelper.registerService(KnowledgeServiceFactory.class, getVertx(), serviceImpl, KnowledgeServiceFactory.DEFAULT_ADDRESS);
+
+    new ServiceBinder(vertx.getDelegate())
+        .setAddress(KnowledgeServiceFactory.DEFAULT_ADDRESS)
+        .register(KnowledgeServiceFactory.class, serviceImpl);
 
     startFuture.complete();
 
