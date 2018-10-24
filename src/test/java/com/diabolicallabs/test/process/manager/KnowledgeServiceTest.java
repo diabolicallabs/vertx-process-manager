@@ -1,6 +1,7 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
+import com.diabolicallabs.process.manager.reactivex.service.KnowledgeService;
 import com.diabolicallabs.process.manager.reactivex.service.KnowledgeServiceFactory;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -41,14 +42,14 @@ public class KnowledgeServiceTest {
       .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
       .flatMap(service -> {
         return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-            .toSingleDefault(service.rxProcessDefinitions());
+          .andThen(service.rxBuild())
+          .andThen(service.rxProcessDefinitions())
+          .doFinally(service::close);
       })
-      .doOnSuccess(definitions -> {
-        System.out.println(definitions.blockingGet().encodePrettily());
-      })
+      .doOnSuccess(jsonArray -> System.out.println(jsonArray.encodePrettily()))
       .subscribe(
           definitions -> {
-            context.assertTrue(definitions.blockingGet().size() > 0);
+            context.assertTrue(definitions.size() > 0);
             async.complete();
           },
         context::fail
@@ -65,9 +66,10 @@ public class KnowledgeServiceTest {
     Single.just(knowledgeServiceFactory)
       .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
       .flatMap(service -> {
-        return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-            .toSingleDefault(service);
+        return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2").andThen(service.rxBuild())
+            .toSingleDefault(service).doFinally(service::close);
       })
+      //.doOnSuccess(KnowledgeService::close)
       .subscribe(
           service -> {
             context.assertNotNull(service);

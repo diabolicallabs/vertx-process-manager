@@ -19,7 +19,7 @@ public class Verticle extends AbstractVerticle {
       String dbDirectory = config().getString("db_directory", "/tmp/data/bpmdb");
 
       ds = new PoolingDataSource();
-      ds.setUniqueName("jdbc/jbpm");
+      ds.setUniqueName("jdbc/jbpm-ds");
       ds.setClassName("org.h2.jdbcx.JdbcDataSource");
       ds.setMaxPoolSize(3);
       ds.setAllowLocalTransactions(true);

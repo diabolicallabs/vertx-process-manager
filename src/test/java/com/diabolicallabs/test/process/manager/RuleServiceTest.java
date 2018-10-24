@@ -1,8 +1,9 @@
 package com.diabolicallabs.test.process.manager;
 
 import com.diabolicallabs.process.manager.Verticle;
-import com.diabolicallabs.process.manager.reactivex.service.*;
-import io.reactivex.Observable;
+import com.diabolicallabs.process.manager.reactivex.service.KnowledgeService;
+import com.diabolicallabs.process.manager.reactivex.service.KnowledgeServiceFactory;
+import com.diabolicallabs.process.manager.reactivex.service.SessionService;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -25,9 +26,6 @@ public class RuleServiceTest {
   Logger logger = LoggerFactory.getLogger(RuleServiceTest.class);
 
   AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<TaskService> taskServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<RuleService> ruleServiceAtomicReference = new AtomicReference<>();
 
   @Rule
   public RunTestOnContext rule = new RunTestOnContext();
@@ -45,25 +43,12 @@ public class RuleServiceTest {
       Single.just(knowledgeServiceFactory)
         .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
         .doOnSuccess(knowledgeServiceAtomicReference::set)
-        .flatMap(service -> {
-          return service.rxAddClassPathResource("VertxRule.drl").andThen(service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set))
-            .flatMap(nothing -> {
-              return service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set);
-            })
-            .flatMap(nothing -> {
-              return service.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set);
-            })
-            .flatMap(nothing -> {
-              return service.rxGetRuleService().doOnSuccess(ruleServiceAtomicReference::set);
-            });
+        .flatMapCompletable(service -> {
+          return service.rxAddClassPathResource("VertxRule.drl")
+            .andThen(service.rxBuild());
         })
         .subscribe(
-            nothing -> {
-              context.assertNotNull(processServiceAtomicReference.get());
-              context.assertNotNull(taskServiceAtomicReference.get());
-              context.assertNotNull(ruleServiceAtomicReference.get());
-              async.complete();
-            },
+          async::complete,
           context::fail
         );
     });
@@ -80,26 +65,29 @@ public class RuleServiceTest {
 
     Async async = context.async();
 
-      Single.just(ruleServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetRuleService)
       .flatMap(ruleService -> {
 
         JsonObject json = new JsonObject()
-            .put("name", "Goku")
-            .put("age", 737)
-            .put("race", "Saiyan");
+          .put("name", "Goku")
+          .put("age", 737)
+          .put("race", "Saiyan");
 
-        return ruleService.rxInsert("com.diabolicallabs.vertxkieserverclienttest", "DragonballCharacter", json);
+        return ruleService.rxInsert("com.diabolicallabs.vertxkieserverclienttest", "DragonballCharacter", json)
+          .flatMap(nothing -> ruleService.rxFireAllRules())
+          .flatMap(numFired -> {
+            System.out.println("Number of rules fired: " + numFired);
+            return ruleService.rxGetQueryResults("characters", "character");
+          });
       })
-      .doOnSuccess(factHandle -> System.out.println("Fact handle: " + factHandle))
-      .flatMap(factHandle -> ruleServiceAtomicReference.get().rxFireAllRules())
-      .doOnSuccess(numFired -> System.out.println("Rules fired: " + numFired))
-      .flatMap(nothing -> ruleServiceAtomicReference.get().rxGetQueryResults("characters", "character"))
       .doOnSuccess(objects -> System.out.println(objects.encodePrettily()))
       .subscribe(
-          objects -> {
-            context.assertNotNull(objects);
-            async.complete();
-          },
+        objects -> {
+          context.assertNotNull(objects);
+          async.complete();
+        },
         context::fail
       );
   }

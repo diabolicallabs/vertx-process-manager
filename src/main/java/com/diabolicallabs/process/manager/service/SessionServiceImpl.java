@@ -21,7 +21,6 @@ public class SessionServiceImpl implements SessionService {
 
   ProcessService processService;
   RuleService ruleService;
-  TaskService taskService;
 
   MessageConsumer<JsonObject> processServiceConsumer;
   MessageConsumer<JsonObject> ruleServiceConsumer;
@@ -46,6 +45,7 @@ public class SessionServiceImpl implements SessionService {
     String serviceAddress = address + ".ProcessService";
     ProcessServiceImpl serviceImpl = new ProcessServiceImpl(vertx, serviceAddress, kieSession);
     processServiceConsumer = ProxyHelper.registerService(ProcessService.class, vertx, serviceImpl, serviceAddress);
+    handler.handle(Future.succeededFuture(ProcessService.createProxy(vertx, serviceAddress)));
 
     return this;
   }

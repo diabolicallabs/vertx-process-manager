@@ -1,5 +1,6 @@
 package com.diabolicallabs.process.manager.service;
 
+import bitronix.tm.TransactionManagerServices;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -10,21 +11,29 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.serviceproxy.ProxyHelper;
+import org.drools.core.impl.KnowledgeBaseFactory;
+import org.jbpm.runtime.manager.impl.jpa.EntityManagerFactoryManager;
 import org.kie.api.KieBase;
 import org.kie.api.definition.process.Node;
 import org.kie.api.definition.process.Process;
 import org.kie.api.definition.process.WorkflowProcess;
 import org.kie.api.io.Resource;
+import org.kie.api.runtime.Environment;
+import org.kie.api.runtime.EnvironmentName;
 import org.kie.api.runtime.manager.*;
 import org.kie.api.runtime.process.ProcessRuntime;
 import org.kie.api.task.TaskLifeCycleEventListener;
 import org.kie.internal.io.ResourceFactory;
 import org.kie.internal.runtime.manager.context.EmptyContext;
+import org.kie.internal.runtime.manager.context.ProcessInstanceIdContext;
 import org.kie.internal.task.api.EventService;
 import org.kie.internal.utils.KieHelper;
 
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import javax.transaction.TransactionManager;
+import java.util.HashSet;
+import java.util.Set;
 
 public class KnowledgeServiceImpl implements KnowledgeService {
 
@@ -39,8 +48,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   private KieBase kieBase;
   private RuntimeEngine runtime;
   private RuntimeEnvironment environment;
-  private RuntimeEnvironmentBuilder builder = RuntimeEnvironmentBuilder.Factory.get().newDefaultInMemoryBuilder();
   private RuntimeManager manager;
+  private Set<Resource> resources = new HashSet<>();
 
   TaskService taskService;
   MessageConsumer<JsonObject> taskServiceConsumer;
@@ -56,7 +65,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   public KnowledgeService addClassPathResource(String resourceName, Handler<AsyncResult<Void>> handler) {
 
     Resource resource = ResourceFactory.newClassPathResource(resourceName);
-    builder.addAsset(resource, resource.getResourceType());
+    resources.add(resource);
+    //builder.addAsset(resource, resource.getResourceType());
     handler.handle(Future.succeededFuture());
 
     return this;
@@ -66,7 +76,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
   public KnowledgeService addFileResource(String fileName, Handler<AsyncResult<Void>> handler) {
 
     Resource resource = ResourceFactory.newFileResource(fileName);
-    builder.addAsset(resource, resource.getResourceType());
+    resources.add(resource);
     handler.handle(Future.succeededFuture());
 
     return this;
@@ -145,17 +155,37 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
   @Override
   public KnowledgeService build(Handler<AsyncResult<Void>> handler) {
+    EntityManagerFactory entityManagerFactory =
+      Persistence.createEntityManagerFactory( "org.jbpm.persistence.jpa" );
+    //EntityManagerFactory entityManagerFactory = EntityManagerFactoryManager.get().getOrCreate("org.jbpm.persistence.jpa");
+    TransactionManager transactionManager = TransactionManagerServices.getTransactionManager();
+
+    RuntimeEnvironmentBuilder builder = RuntimeEnvironmentBuilder.Factory.get().newDefaultBuilder();
+    resources.forEach(resource -> builder.addAsset(resource, resource.getResourceType()));
+    builder.addEnvironmentEntry(EnvironmentName.TRANSACTION_MANAGER, transactionManager);
+    builder.entityManagerFactory(entityManagerFactory);
     environment = builder.get();
+
     kieBase = environment.getKieBase();
-    manager = RuntimeManagerFactory.Factory.get().newSingletonRuntimeManager(environment);
-    runtime = manager.getRuntimeEngine(EmptyContext.get());
+    manager = RuntimeManagerFactory.Factory.get().newPerProcessInstanceRuntimeManager(environment);
+    //manager = RuntimeManagerFactory.Factory.get().newSingletonRuntimeManager(environment);
+    runtime = manager.getRuntimeEngine(ProcessInstanceIdContext.get());
+    //runtime = manager.getRuntimeEngine(EmptyContext.get());
     built = true;
+
+    handler.handle(Future.succeededFuture());
 
     return this;
   }
 
   @Override
   public void close() {
+    logger.info("Closing KnowledgeService");
     if (taskServiceConsumer != null) ProxyHelper.unregisterService(taskServiceConsumer);
+    if (manager != null) {
+      manager.close();
+      manager.disposeRuntimeEngine(runtime);
+    }
+    if (environment != null) environment.close();
   }
 }
