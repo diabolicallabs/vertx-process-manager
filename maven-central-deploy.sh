@@ -3,7 +3,7 @@
 # Deploy maven artifact in current directory into Maven central repository
 # using maven-release-plugin goals
 
-read -p "Really deploy to maven cetral repository  (yes/no)? "
+read -p "Really deploy to maven central repository  (yes/no)? "
 
 if ( [ "$REPLY" == "yes" ] ) then
   ssh-add ~/.ssh/id_rsa.pub

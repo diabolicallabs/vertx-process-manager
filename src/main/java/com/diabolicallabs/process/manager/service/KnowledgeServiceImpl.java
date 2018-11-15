@@ -11,8 +11,12 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.serviceproxy.ProxyHelper;
+<<<<<<< HEAD
 import org.drools.core.impl.KnowledgeBaseFactory;
 import org.jbpm.runtime.manager.impl.jpa.EntityManagerFactoryManager;
+=======
+import io.vertx.serviceproxy.ServiceBinder;
+>>>>>>> 577d43a2903b2b678aa55cedbe3d84be347f0a82
 import org.kie.api.KieBase;
 import org.kie.api.definition.process.Node;
 import org.kie.api.definition.process.Process;
@@ -31,9 +35,13 @@ import org.kie.internal.utils.KieHelper;
 
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+<<<<<<< HEAD
 import javax.transaction.TransactionManager;
 import java.util.HashSet;
 import java.util.Set;
+=======
+import java.lang.reflect.Proxy;
+>>>>>>> 577d43a2903b2b678aa55cedbe3d84be347f0a82
 
 public class KnowledgeServiceImpl implements KnowledgeService {
 
@@ -121,7 +129,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     String serviceAddress = address + ".SessionService";
     SessionServiceImpl serviceImpl = new SessionServiceImpl(vertx, config, serviceAddress, runtime.getKieSession());
-    ProxyHelper.registerService(SessionService.class, vertx, serviceImpl, serviceAddress);
+
+    new ServiceBinder(vertx)
+        .setAddress(serviceAddress)
+        .register(SessionService.class, serviceImpl);
 
     handler.handle(Future.succeededFuture(SessionService.createProxy(vertx, serviceAddress)));
     return this;
@@ -138,8 +149,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     if (taskService == null) {
       String serviceAddress = address + ".TaskService";
       TaskServiceImpl serviceImpl = new TaskServiceImpl(vertx, serviceAddress, runtime.getTaskService());
-      taskServiceConsumer = ProxyHelper.registerService(TaskService.class, vertx, serviceImpl, serviceAddress);
-
+      taskServiceConsumer = new ServiceBinder(vertx)
+          .setAddress(serviceAddress)
+          .register(TaskService.class, serviceImpl);
       taskService = TaskService.createProxy(vertx, serviceAddress);
     }
     handler.handle(Future.succeededFuture(taskService));
@@ -180,6 +192,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
   @Override
   public void close() {
+<<<<<<< HEAD
     logger.info("Closing KnowledgeService");
     if (taskServiceConsumer != null) ProxyHelper.unregisterService(taskServiceConsumer);
     if (manager != null) {
@@ -187,5 +200,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
       manager.disposeRuntimeEngine(runtime);
     }
     if (environment != null) environment.close();
+=======
+    if (taskServiceConsumer != null) new ServiceBinder(vertx).unregister(taskServiceConsumer);
+>>>>>>> 577d43a2903b2b678aa55cedbe3d84be347f0a82
   }
 }

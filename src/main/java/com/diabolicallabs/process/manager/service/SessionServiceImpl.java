@@ -9,6 +9,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.serviceproxy.ProxyHelper;
+import io.vertx.serviceproxy.ServiceBinder;
 import org.kie.api.runtime.KieSession;
 
 public class SessionServiceImpl implements SessionService {
@@ -44,9 +45,15 @@ public class SessionServiceImpl implements SessionService {
 
     String serviceAddress = address + ".ProcessService";
     ProcessServiceImpl serviceImpl = new ProcessServiceImpl(vertx, serviceAddress, kieSession);
+<<<<<<< HEAD
     processServiceConsumer = ProxyHelper.registerService(ProcessService.class, vertx, serviceImpl, serviceAddress);
     handler.handle(Future.succeededFuture(ProcessService.createProxy(vertx, serviceAddress)));
 
+=======
+    processServiceConsumer = new ServiceBinder(vertx)
+        .setAddress(serviceAddress)
+        .register(ProcessService.class, serviceImpl);
+>>>>>>> 577d43a2903b2b678aa55cedbe3d84be347f0a82
     return this;
   }
 
@@ -58,8 +65,9 @@ public class SessionServiceImpl implements SessionService {
       String serviceAddress = address + ".RuleService";
 
       RuleServiceImpl serviceImpl = new RuleServiceImpl(vertx, serviceAddress, kieSession);
-      ruleServiceConsumer = ProxyHelper.registerService(RuleService.class, vertx, serviceImpl, serviceAddress);
-
+      ruleServiceConsumer = new ServiceBinder(vertx)
+          .setAddress(serviceAddress)
+          .register(RuleService.class, serviceImpl);
       ruleService = RuleService.createProxy(vertx, serviceAddress);
     }
     handler.handle(Future.succeededFuture(ruleService));
@@ -70,7 +78,7 @@ public class SessionServiceImpl implements SessionService {
   @Override
   public void close() {
 
-    if (processServiceConsumer != null) ProxyHelper.unregisterService(processServiceConsumer);
-    if (ruleServiceConsumer != null) ProxyHelper.unregisterService(ruleServiceConsumer);
+    if (processServiceConsumer != null) new ServiceBinder(vertx).unregister(processServiceConsumer);
+    if (ruleServiceConsumer != null) new ServiceBinder(vertx).unregister(ruleServiceConsumer);
   }
 }

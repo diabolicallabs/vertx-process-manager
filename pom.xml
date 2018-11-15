@@ -30,7 +30,7 @@
         <url>https://github.com/diabolicallabs/vertx-process-manager</url>
         <connection>scm:git:git@github.com:diabolicallabs/vertx-process-manager.git</connection>
         <developerConnection>scm:git:git@github.com:diabolicallabs/vertx-process-manager.git</developerConnection>
-        <tag>vertx-process-manager-0.9-SNAPSHOT</tag>
+        <tag>vertx-process-manager-${project.version}</tag>
     </scm>
 
     <issueManagement>
@@ -390,6 +390,63 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.23.0</version>
+                <executions>
+                    <execution>
+                        <id>docker-build</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <images>
+                        <image>
+                            <name>diabolicallabs/${project.artifactId}</name>
+                            <alias>${project.artifactId}</alias>
+                            <build>
+                                <from>openjdk:8</from>
+                                <tags>
+                                    <tag>latest</tag>
+                                    <tag>${project.version}</tag>
+                                </tags>
+                                <assembly>
+                                    <mode>dir</mode>
+                                    <inline xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+                                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                            xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd http://maven.apache.org/ASSEMBLY/2.0.0 ">
+                                        <id>diabolical-service</id>
+                                        <files>
+                                            <file>
+                                                <source>
+                                                    ${project.build.directory}/${project.artifactId}-${project.version}-fat.jar
+                                                </source>
+                                                <outputDirectory>./</outputDirectory>
+                                                <destName>fat.jar</destName>
+                                            </file>
+                                            <file>
+                                                <source>
+                                                    ${project.build.directory}/classes/config.json
+                                                </source>
+                                                <outputDirectory>./</outputDirectory>
+                                            </file>
+                                        </files>
+                                    </inline>
+                                </assembly>
+                                <cmd>
+                                    <shell>
+                                        java -agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n -jar /maven/fat.jar -cluster -conf /maven/config.json
+                                    </shell>
+                                </cmd>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
             </plugin>
         </plugins>
     </build>
