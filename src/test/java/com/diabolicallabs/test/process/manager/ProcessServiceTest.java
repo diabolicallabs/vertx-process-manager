@@ -26,8 +26,6 @@ public class ProcessServiceTest {
 
   Logger logger = LoggerFactory.getLogger(ProcessServiceTest.class);
 
-  AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
-
   @Rule
   public RunTestOnContext rule = new RunTestOnContext();
 
@@ -41,9 +39,11 @@ public class ProcessServiceTest {
       Vertx rxVertx = new Vertx(rule.vertx());
       KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
 
+      context.put("knowledgeServiceFactory", knowledgeServiceFactory);
+
       Single.just(knowledgeServiceFactory)
           .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
-          .doOnSuccess(knowledgeServiceAtomicReference::set)
+          .doOnSuccess(knowledgeService -> context.put("knowledgeService", knowledgeService))
           .flatMapCompletable(service -> {
             return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
                 .andThen(service.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")
@@ -57,9 +57,11 @@ public class ProcessServiceTest {
 
   }
 
+
   @After
   public void after(TestContext context) {
-    knowledgeServiceAtomicReference.get().close();
+    KnowledgeService knowledgeService = context.get("knowledgeService");
+    knowledgeService.close();
   }
 
   @Test
@@ -71,12 +73,10 @@ public class ProcessServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Single.just(knowledgeServiceAtomicReference.get())
+    Single.just((KnowledgeService)context.get("knowledgeService"))
       .flatMap(KnowledgeService::rxGetSessionService)
       .flatMap(SessionService::rxGetProcessService)
-        .flatMap(service -> {
-          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
-        })
+        .flatMap(service -> service.rxCreate("VertxKieServerClientTest.KieServerClientTest"))
         .flatMap(processInstanceService -> {
           instanceServiceAtomicReference.set(processInstanceService);
           return processInstanceService.rxGetInstanceId();
