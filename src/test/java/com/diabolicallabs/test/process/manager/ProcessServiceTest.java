@@ -26,11 +26,6 @@ public class ProcessServiceTest {
 
   Logger logger = LoggerFactory.getLogger(ProcessServiceTest.class);
 
-  AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<TaskService> taskServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<RuleService> ruleServiceAtomicReference = new AtomicReference<>();
-
   @Rule
   public RunTestOnContext rule = new RunTestOnContext();
 
@@ -44,37 +39,29 @@ public class ProcessServiceTest {
       Vertx rxVertx = new Vertx(rule.vertx());
       KnowledgeServiceFactory knowledgeServiceFactory = KnowledgeServiceFactory.createProxy(rxVertx, com.diabolicallabs.process.manager.service.KnowledgeServiceFactory.DEFAULT_ADDRESS);
 
+      context.put("knowledgeServiceFactory", knowledgeServiceFactory);
+
       Single.just(knowledgeServiceFactory)
           .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
-          .doOnSuccess(knowledgeServiceAtomicReference::set)
-          .flatMap(service -> {
+          .doOnSuccess(knowledgeService -> context.put("knowledgeService", knowledgeService))
+          .flatMapCompletable(service -> {
             return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-                .andThen(service.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2"))
-                .toSingleDefault(service)
-                .flatMap(nothing -> {
-                  return service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set);
-                })
-                .flatMap(nothing -> {
-                  return service.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set);
-                })
-                .flatMap(nothing -> {
-                  return service.rxGetRuleService().doOnSuccess(ruleServiceAtomicReference::set);
-                });
+                .andThen(service.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")
+                .andThen(service.rxBuild()));
           })
           .subscribe(
-              service -> {
-                context.assertNotNull(service);
-                async.complete();
-              },
+              async::complete,
               context::assertNotNull
           );
     });
 
   }
 
+
   @After
   public void after(TestContext context) {
-    knowledgeServiceAtomicReference.get().close();
+    KnowledgeService knowledgeService = context.get("knowledgeService");
+    knowledgeService.close();
   }
 
   @Test
@@ -86,10 +73,10 @@ public class ProcessServiceTest {
 
     Vertx rxVertx = new Vertx(rule.vertx());
 
-    Single.just(processServiceAtomicReference.get())
-        .flatMap(service -> {
-          return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
-        })
+    Single.just((KnowledgeService)context.get("knowledgeService"))
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
+        .flatMap(service -> service.rxCreate("VertxKieServerClientTest.KieServerClientTest"))
         .flatMap(processInstanceService -> {
           instanceServiceAtomicReference.set(processInstanceService);
           return processInstanceService.rxGetInstanceId();
@@ -115,7 +102,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           return service.rxStartProcess("VertxKieServerClientTest.KieServerClientTest");
         })
@@ -139,7 +128,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")
@@ -169,7 +160,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
         })
@@ -190,7 +183,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
         })
@@ -215,7 +210,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
         })
@@ -240,7 +237,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           return service.rxCreate("VertxKieServerClientTest.KieServerClientTest");
         })
@@ -265,7 +264,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")
@@ -305,8 +306,12 @@ public class ProcessServiceTest {
     Async async = context.async();
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
+    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
+      .doOnSuccess(processServiceAtomicReference::set)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")
@@ -346,8 +351,12 @@ public class ProcessServiceTest {
     Async async = context.async();
 
     AtomicReference<ProcessInstanceService> instanceServiceAtomicReference = new AtomicReference<>();
+    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
+      .doOnSuccess(processServiceAtomicReference::set)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")
@@ -386,7 +395,9 @@ public class ProcessServiceTest {
 
     Async async = context.async();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")
@@ -412,8 +423,12 @@ public class ProcessServiceTest {
     Async async = context.async();
 
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
+    AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
+      .doOnSuccess(processServiceAtomicReference::set)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")
@@ -446,7 +461,9 @@ public class ProcessServiceTest {
 
     AtomicReference<ProcessInstanceService> processInstanceServiceAtomicReference = new AtomicReference<>();
 
-    Single.just(processServiceAtomicReference.get())
+    Single.just(knowledgeServiceAtomicReference.get())
+      .flatMap(KnowledgeService::rxGetSessionService)
+      .flatMap(SessionService::rxGetProcessService)
         .flatMap(service -> {
           JsonObject json = new JsonObject();
           json.put("display", "Goats")

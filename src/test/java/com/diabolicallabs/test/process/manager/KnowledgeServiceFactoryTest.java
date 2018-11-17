@@ -61,6 +61,7 @@ public class KnowledgeServiceFactoryTest {
         .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
         .flatMap(service -> {
           return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
+            .andThen(service.rxBuild())
               .toSingleDefault(service);
         })
         .subscribe(

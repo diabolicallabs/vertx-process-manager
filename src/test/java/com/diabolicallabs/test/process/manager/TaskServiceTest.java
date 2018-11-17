@@ -3,7 +3,6 @@ package com.diabolicallabs.test.process.manager;
 import com.diabolicallabs.process.manager.Verticle;
 import com.diabolicallabs.process.manager.reactivex.service.*;
 import com.diabolicallabs.process.manager.service.UserTask;
-import io.reactivex.Observable;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -29,9 +28,7 @@ public class TaskServiceTest {
   Logger logger = LoggerFactory.getLogger(TaskServiceTest.class);
 
   AtomicReference<KnowledgeService> knowledgeServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<ProcessService> processServiceAtomicReference = new AtomicReference<>();
   AtomicReference<TaskService> taskServiceAtomicReference = new AtomicReference<>();
-  AtomicReference<RuleService> ruleServiceAtomicReference = new AtomicReference<>();
 
   @Rule
   public RunTestOnContext rule = new RunTestOnContext();
@@ -49,24 +46,13 @@ public class TaskServiceTest {
       Single.just(knowledgeServiceFactory)
         .flatMap(KnowledgeServiceFactory::rxGetKnowledgeService)
         .doOnSuccess(knowledgeServiceAtomicReference::set)
-        .flatMap(service -> {
-          return service.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
-              .andThen(service.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2")).toSingleDefault(service)
-            .flatMap(nothing -> {
-              return service.rxGetProcessService().doOnSuccess(processServiceAtomicReference::set);
-            })
-            .flatMap(nothing -> {
-              return service.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set);
-            })
-            .flatMap(nothing -> {
-              return service.rxGetRuleService().doOnSuccess(ruleServiceAtomicReference::set);
-            });
-        })
+        .flatMap(knowledgeService -> knowledgeService.rxAddClassPathResource("org.jbpm.KieServerClientTest.v1.0.bpmn2")
+          .andThen(knowledgeService.rxAddClassPathResource("org.jbpm.KieServerClientSubprocessTest.v1.0.bpmn2"))
+          .andThen(knowledgeService.rxBuild())
+          .andThen(knowledgeService.rxGetTaskService().doOnSuccess(taskServiceAtomicReference::set))
+        )
         .subscribe(
-            object -> {
-              async.complete();
-              context.assertNotNull(object);
-            },
+          service -> async.complete(),
           context::fail
         );
     });
@@ -115,7 +101,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -173,7 +160,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -230,7 +218,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -287,7 +276,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -344,7 +334,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -403,7 +394,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -460,7 +452,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -515,7 +508,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -570,7 +564,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
@@ -624,7 +619,8 @@ public class TaskServiceTest {
         });
 
       })
-      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetProcessService())
+      .flatMap(nothing -> knowledgeServiceAtomicReference.get().rxGetSessionService())
+      .flatMap(SessionService::rxGetProcessService)
       .flatMap(service -> {
         JsonObject json = new JsonObject();
         json.put("display", "Goats")
