@@ -45,12 +45,12 @@
 
     <properties>
         <main.verticle>com.diabolicallabs.process.manager.Verticle</main.verticle>
-        <vertx.version>3.5.4</vertx.version>
-        <hazelcast.version>3.8.2</hazelcast.version>
+        <vertx.version>3.6.3</vertx.version>
+        <hazelcast.version>3.10.5</hazelcast.version>
         <h2.version>1.3.161</h2.version>
         <hibernate.version>5.3.7.Final</hibernate.version>
         <btm.version>2.1.4</btm.version>
-        <jbpm.version>7.13.0.Final</jbpm.version>
+        <jbpm.version>7.19.0.Final</jbpm.version>
         <java.version>1.8</java.version>
     </properties>
 
@@ -94,11 +94,6 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-lang-ruby</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-lang-ceylon</artifactId>
         </dependency>
 
         <dependency>
